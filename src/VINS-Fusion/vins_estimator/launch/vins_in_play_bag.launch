@@ -1,0 +1,15 @@
+<launch>
+	<!-- 启用VINS节点 -->
+	<node name="vins_fusion" pkg="vins"  type="vins_node" output="screen" args="$(find vins)/../config/Drone_250.yaml">
+		<remap from="/mavros/imu/data_raw" to="/imu0" />
+		<remap from="/camera/infra1/image_rect_raw" to="/cam0/image_raw" />
+		<remap from="/camera/infra2/image_rect_raw" to="/cam1/image_raw" />
+	</node>
+	<!-- 启用RVIZ -->
+	<node name="rvizvisualisation" pkg="rviz"  type="rviz" output="screen" args="-d $(find vins)/../config/vins_rviz_config.rviz"/>
+	<!-- 启用vins_to_mavros -->
+	<node name="vins_to_mavros_node" pkg="vins_to_mavros"  type="vins_to_mavros_node" />
+	<!-- 启用回环检测 -->
+	<!-- <node name="loop_fusion" pkg="loop_fusion"  type="loop_fusion_node" args="$(find vins)/../config/Drone_250.yaml" output="screen"/> -->
+
+</launch> 

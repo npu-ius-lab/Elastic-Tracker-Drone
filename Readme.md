@@ -1,38 +1,29 @@
-# 具备目标自动识别与追踪功能的四旋翼无人机
+# Elastic-Tracker部署指南
 
->本文档是 2024春-2024秋 **飞机综合控制系统设计与实践**课程 的总结与说明文档，记录了整个项目软件系统的部署流程与代码框架。
-
-本说明文档由 张子宇 撰写。
-
-组员：**张子宇** 何文韬 朱本博 曹绪彻
-
-## 目 录
-[TOC]
+本文档是部署Elastic-Tracker到无人机上并进行仿真与实际验证的指南。  
+说明文档由 张子宇 撰写。
 
 ## 简 介
+[Elastic-Tracker](https://github.com/ZJU-FAST-Lab/Elastic-Tracker) 是一个灵活的轨迹规划框架，能够以保证安全和可见性的方式处理具有挑战性的跟踪任务。  
+[VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) 是一种基于优化的多传感器状态估计器，实现了无人机的精确自定位。
 
-本项目基于ROS框架开发，集成了开源位姿估计算法VINS-Fusion、开源规划与追踪算法算法Elastic-Tracker和开源计算机视觉库OpenCV，并打通了各硬件、软件之间的通信逻辑。
+部署本仓库，你可以完成一架具有**稳定飞行与悬停**（由VINS实现）、**自主跟随目标并避障飞行**（由Elastic-Tracker实现）的无人机，或是在Gazebo中完成一架与实机部署流程基本一致的仿真飞机。
 
-本项目能够实现四旋翼无人机在无GPS情况下的**稳定飞行与悬停**、**识别指定颜色物体**、**自主规划与避障跟随飞行**的功能。
+本仓库集成了定位算法VINS-Fusion、追踪算法Elastic-Tracker、硬件驱动Realsense2_camera，将它们整合在一个项目（工作空间）中，以实现部署即用的效果，简化大家的调试流程、减轻初学者的学习负担。
+>原Elastic-Tracker项目并未开源目标识别算法。作者自写了一个较为鲁棒的（应该吧）目标识别算法，自动识别RGBD相机视野中的红色物体。你也可以针对本部分进行二次开发。
 
-本项目在Gazebo中联合调试仿真通过并完成了上述所有功能：
+本项目在Gazebo中联合调试仿真通过并完成了所有功能：
 >操作系统：Ubuntu 20.04  
 >CPU：R9-7945HX  
 >GPU：RTX-4060 Laptop 8G  
 >内存：16G
 
-本项目将在以下实机平台上完成全流程部署：
+本项目在以下实机平台上部署通过并完成了所有功能：
 >机型：250mm轴距碳板机架 四旋翼  
 飞控：雷迅V5+ / PX4固件  
 机载计算机：Intel NUC i7-1165G7 / Ubuntu 20.04  
 动力套：T-Motor V2207 V2.0 KV2550 ×4  
 双目相机：Intel Realsense D435i  
-
-如需二次开发，可参考以下指南：
-
-1. 不需视觉位姿估计，仅在GPS下工作，则可去掉VINS-Fusion（不建议，GPS不能提供姿态估计。可更改为其他里程计，如LIO等）。
-2. 鉴于视觉里程计系统可能存在漂移的情况，为安全起见，可以考虑配置光流定高模块等辅助进行EKF定位。
-3. 需要进行物体识别等功能，可考虑部署YOLO等框架，更改Tracking文件夹即可。  
 
 ## 仿真部署指南
 
@@ -50,7 +41,7 @@
 在Gazebo中对整个无人机进行仿真。为了更好的仿真效果，需要加载仿真场景，这对电脑的显卡配置要求较高，且需要针对Ubuntu和Gazebo配置显卡驱动与OpenGL相关配置。  
 配置方法记录在文末的**环境配置说明**中。
 
-#### 1. 配置PX4固件、ROS、MAVROS
+### 1. 配置PX4固件、ROS、MAVROS
 
 配置PX4可参照[PX4从放弃到精通（二）：ubuntu18.04配置px4编译环境及mavros环境](https://blog.csdn.net/qq_38768959/article/details/106041494?ops_request_misc=%257B%2522request%255Fid%2522%253A%2522167361309116782425683823%2522%252C%2522scm%2522%253A%252220140713.130102334.pc%255Fblog.%2522%257D&request_id=167361309116782425683823&biz_id=0&utm_medium=distribute.pc_search_result.none-task-blog-2~blog~first_rank_ecpm_v1~rank_v31_ecpm-4-106041494-null-null.blog_rank_default&utm_term=gazebo&spm=1018.2226.3001.4450)一文配置PX4、ROS和MAVROS。  
 
@@ -80,16 +71,17 @@ make px4_sitl gazebo
 ```
 可见gazebo正常启动，模型正常加载，表明配置完成。
 
-#### 2. 加载仿真环境与插件
+### 2. 加载仿真环境与插件
 
 为了仿真效果更好，这里加载仿真世界场景。gazebo默认没有安装加载世界场景的模型，因此需要自行安装。本项目已经收集、配置了许多模型与世界环境文件，通过如下命令下载：
 ```bash
-git clone https://gitee.com/Invocatory_Weiyang/gazebo-models.git
+git clone https://github.com/npu-ius-lab/Gazebo-Models.git
 ```
 
+**注意！**默认下载应用于较新版本的PX4固件的分支。如果你打算使用旧版本PX4固件，请下载旧版本分支。  
 所有资源大概2 GB左右。下载完成后，按照该仓库的Readme文件配置即可。
 
-#### 3. 启动Gazebo仿真
+### 3. 启动Gazebo仿真
 
 启动终端，执行：
 ```bash
@@ -141,7 +133,7 @@ mavlink stream -d /dev/ttyACM0 -s HIGHRES_IMU -r 100
 mavlink stream -d /dev/ttyACM0 -s ATTITUDE_QUATERNION -r 100
 ```
 
-#### 4. 启动VINS_Fusion
+### 4. 启动VINS_Fusion
 
 首先需要配置VINS所需的依赖功能包。解压本项目文件夹下的`3rd_party.zip`，然后：
 
@@ -204,7 +196,7 @@ roslaunch vins Drone_gazebo.launch
 
 在地面站中将飞行模式切换为Position，应当能够切换并顺利起飞、悬停.
 
-#### 5. 检查OpenCV-Target
+### 5. 检查OpenCV-Target
 
 本项目使用opencv做物体识别，将RGB相机获得的图像信息进行掩模处理后筛选出红色色块，再从对齐后的深度图中获得目标色块的深度信息，结合相机位姿就能获得物体在世界坐标系下的位置。
 >因此深度相机是必须项，没有深度值就不能做到避障和追踪。
@@ -221,7 +213,7 @@ roslaunch opencv_target test_gazebo.launch
 现在，你可以新启动一个终端，输入`rqt_image_view`，应当可以看到有一个`color_image_processed`话题输出。如果有红色物体出现在画面中，则该话题的图像会输出一个框将其框出。
 >注意，颜色识别与物体的光照、明暗等亦有关系。Gazebo中也会仿真光照条件，因此如果识别不到物体，在确认颜色正确的情况下，尝试更换一个光照良好的角度。
 
-#### 6. 启动Elastic-Tracker
+### 6. 启动Elastic-Tracker
 
 打开`Target-Tracking-Drone-250/src/Elastic-Tracker/src/planning/planning/launch/run_in_gazebo.launch`文件，检查：
 - 节点`opencv_target_node`下的深度与RGB图像话题。
@@ -240,7 +232,7 @@ roslaunch planning run_in_gazebo.launch
 
 如果在`rqt_image_view`窗口中可以看见被跟踪的目标，则无人机应当能够跟踪目标。你可以在gazebo中拖动红色的小方块，看无人机如何运动。本项目的`image`文件夹中给出了一个示例。
 
-#### 7. 联合启动
+### 7. 联合启动
 
 如果以上调试均无问题，你可以在本项目的目录下启动终端，输入：
 ```bash
@@ -446,8 +438,6 @@ Realsense驱动：Realsense2-Camera
 >>`src` —— 主要代码  
 
 >注：Realsense驱动可以不随你的工作空间部署，而是直接部署在机载计算机中。当然，不同项目对双目相机的参数（例如说帧率、分辨率等）可能不同，建议最好还是为每个项目单独配一个驱动功能包。
-
-
 
 ## 环境配置说明
 

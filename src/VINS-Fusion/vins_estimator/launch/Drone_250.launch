@@ -1,0 +1,21 @@
+<launch>
+	<!-- 更改MAVROS的IMU发布频率 -->
+    	<node name="mavcmd1" pkg="mavros"  type="mavcmd" args="long 511 105 2500 0 0 0 0 0"/> 
+	<!-- 启用VINS节点 -->
+	<node name="vins_fusion" pkg="vins"  type="vins_node" output="screen" args="$(find vins)/../config/realsense_d435i/realsense_stereo_imu_config.yaml" >
+	  <remap from="~px4_odometry" to="/mavros/vision_pose/pose"/>
+	</node>
+	<!-- 启用GPS融合节点 -->
+	<!--node name="vins_globalEstimator" pkg="global_fusion" type="global_fusion_node" output="screen">
+	  <remap from="~extrinsic" to="/vins_fusion/extrinsic"/>
+	  <remap from="~gps" to="/mavros/global_position/global"/>
+	  <remap from="~vio" to="/vins_fusion/imu_propagate"/>
+	  <remap from="~px4_odometry" to="/mavros/vision_pose/pose"/>
+	</node-->
+	<!-- 启用RVIZ -->
+	<node name="rvizvisualisation" pkg="rviz"  type="rviz" output="screen" args="-d $(find vins)/../config/vins_rviz_config.rviz"/>
+
+	<!-- 启用回环检测 >
+	<node name="loop_fusion" pkg="loop_fusion"  type="loop_fusion_node" args="$(find vins)/../config/Drone_250.yaml" output="screen"/-->
+
+</launch> 

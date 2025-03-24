@@ -1,0 +1,106 @@
+<launch>
+
+  <node name="opencv_target_node" pkg="opencv_target" type="opencv_target" output="screen" >
+    <remap from="/color/image_raw" to="/camera/color/image_raw"/>
+    <remap from="/depth/image_raw" to="/camera/aligned_depth_to_color/image_raw"/>
+    <param name="depth_fix" value="0.01"/>
+  </node>
+  
+  <node name="target_ekf_node" pkg="target_ekf" type="target_ekf_node" output="screen" >
+    <rosparam command="load" file="$(find target_ekf)/config/camera_gazebo.yaml" />
+    <param name="ekf_rate" value="30"/>
+    <param name="pitch_thr" value="37"/>
+    <remap from="~yolo" to="/target/bbox"/>
+    <remap from="~odom" to="/vins_fusion/imu_propagate"/>
+    <remap from="~extrinsic" to="/vins_fusion/extrinsic"/>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="manager" args="manager" output="screen">
+    <param name="num_worker_threads" value="16"/>
+  </node>
+    
+  <node pkg="nodelet" type="nodelet" name="mapping" args="load mapping/Nodelet manager" output="screen">
+    <!-- camera parameters -->
+    <rosparam command="load" file="$(find mapping)/config/D435.yaml" />
+    <!-- remap topics -->
+    <remap from="~odom" to="/vins_fusion/imu_propagate"/>
+    <remap from="~depth" to="/camera/depth/image_rect_raw"/>
+    <remap from="~extrinsic" to="/vins_fusion/extrinsic"/>
+    <remap from="~gridmap" to="/gridmap"/>
+    <remap from="~gridmap_inflate" to="/gridmap_inflate"/>
+      
+    <param name="down_sample_factor" value="2"/>
+    <!-- depth filter parameters -->
+    <param name="depth_filter_tolerance" value="0.15"/>
+    <param name="depth_filter_mindist" value="0.2"/>
+    <param name="depth_filter_margin" value="2"/>
+    <!-- raycasting parameters -->
+    <param name="p_min" value="-199"/>
+    <param name="p_max" value=" 220"/>
+    <param name="p_hit" value="  62"/>
+    <param name="p_mis" value="  62"/>
+    <param name="p_occ" value=" 139"/>
+    <param name="p_def" value="-199"/>
+    <!-- mapping parameters -->
+    <param name="resolution" value="0.15"/>
+    <param name="local_x" value="20"/>
+    <param name="local_y" value="20"/>
+    <param name="local_z" value="5"/>
+    <param name="inflate_size" value="1"/>
+    <!-- use mask -->
+    <param name="use_mask" value="true"/>
+    <param name="mask_x" value="0.4"/>
+    <param name="mask_y" value="0.4"/>
+    <param name="mask_z" value="1.0"/>
+    <remap from="~target" to="/target_ekf_node/target_odom"/>
+      
+    <param name="use_global_map" value="false"/>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="planning" args="load planning/Nodelet manager" output="screen">
+    <remap from="~odom" to="/vins_fusion/imu_propagate"/>
+    <remap from="~gridmap_inflate" to="/gridmap_inflate"/>
+    <remap from="~heartbeat" to="/heartbeat"/>
+    <remap from="~trajectory" to="/trajectory"/>
+    <remap from="~replanState" to="/replanState"/>
+    <remap from="~target" to="/target_ekf_node/target_odom"/>
+    <remap from="~triger" to="/triger"/>
+    <remap from="~PX4_state" to="/mavros/state"/>
+    <remap from="~land_triger" to="/land_triger"/>
+
+    <param name="plan_hz" value="30"/>
+
+    <param name="K" value="8"/>
+    
+    <param name="vmax" value="1.0"/>
+    <param name="amax" value="2.0"/>
+    
+    <param name="rhoT" value="100.0"/>
+    <param name="rhoP" value="10000.0"/>
+    <param name="rhoV" value="1000.0"/>
+    <param name="rhoA" value="1000.0"/>
+    <param name="rhoTracking" value="1000.0"/>
+    <param name="rhosVisibility" value="10000.0"/>
+    <param name="theta_clearance" value="0.8"/>
+    <param name="clearance_d" value="0.2"/>
+    <param name="tolerance_d" value="0.3"/>
+    <param name="tolerance_yaw" value="0.4"/>
+    <param name="tracking_dist" value="1.5"/>
+    <param name="tracking_dur" value="3.0"/>
+    <param name="tracking_dt" value="0.2"/>
+    <param name="debug" value="false"/>
+
+    <param name="prediction/rho_a" value="1.0"/>
+    <param name="prediction/vmax" value="5.0"/>
+
+  </node>
+  
+  <node pkg="planning" name="traj_server" type="traj_server" output="screen">
+    <remap from="~position_cmd" to="/mavros/setpoint_raw/local"/>
+    <remap from="~trajectory" to="/trajectory"/>
+    <remap from="~heartbeat" to="/heartbeat"/>
+    <param name="time_forward" value="1.0" type="double"/>
+  </node>
+
+
+</launch>
